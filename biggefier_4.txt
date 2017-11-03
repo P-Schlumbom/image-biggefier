@@ -1,0 +1,70 @@
+w = getWidth();
+h = getHeight();
+bit = bitDepth();
+growthFactor = 3;
+
+clone_img = newArray(w * h);
+Q = pow(2, bit) - 1;
+
+for(y=0; y<h; y++){
+	for(x=0; x<w; x++){
+		clone_img[(y * w) + x] = getPixel(x, y);
+	}
+}
+
+newSettings = "width=" + (w*growthFactor) + " height=" + (h*growthFactor) + " position=Top-Left";
+run("Canvas Size...", newSettings);
+
+new_clone = newArray(w * growthFactor * h * growthFactor);
+
+for(y=0; y<(h*growthFactor); y++){
+	for(x=0; x<(w*growthFactor); x++){
+		newVal = clone_img[(floor(y/growthFactor)*w)+floor(x/growthFactor)];
+		setPixel(x, y, newVal);
+		new_clone[(y*w) + x] = newVal;
+	}
+}
+
+edge_matrix = newArray(w * growthFactor * h * growthFactor);
+
+for(y=growthFactor; y<(h*growthFactor)-growthFactor; y++){
+	for(x=growthFactor; x<(w*growthFactor)-growthFactor; x++){
+		yval = floor(y/growthFactor);
+		xval = floor(x/growthFactor);
+		gx = (clone_img[(yval*w)+xval+1] - clone_img[(yval*w)+xval-1])/2;
+		gy = (clone_img[(yval+1)*w + xval] - clone_img[(yval-1)*w + xval])/2;
+		edge_matrix[(y*w) + x] = Q - sqrt(pow(gx, 2) + pow(gy, 2));
+	}
+}
+
+//this section uses bilinear interpolation to figure out the individual values within each expanded pixel.
+for(y=growthFactor; y<(h*growthFactor)-growthFactor; y++){
+	for(x=growthFactor; x<(w*growthFactor)-growthFactor; x++){
+		yval = floor(y/growthFactor);
+		xval = floor(x/growthFactor);
+		
+		a = xval - 1; b = yval;          //q11
+		c = a + growthFactor; d = b - 1; //q21
+		e = xval; f = b + growthFactor;  //q12
+		g = e + growthFactor; i = yval + growthFactor - 1;//f - 1; //q22
+		
+		/*q11 = getPixel(a, b) * (edge_matrix[(b*w) + a] / Q);
+		q21 = getPixel(c, d) * (edge_matrix[(d*w) + c] / Q);
+		q12 = getPixel(e, f) * (edge_matrix[(f*w) + e] / Q);
+		q22 = getPixel(g, i) * (edge_matrix[(i*w) + g] / Q);*/
+		
+		na = new_clone[(b*w) + a]; nb = edge_matrix[(b*w) + a]; nc = (edge_matrix[(b*w) + a] / Q);
+		q11 = new_clone[(b*w) + a];// * (edge_matrix[(b*w) + a] / Q);
+		q21 = new_clone[(d*w) + c];// * (edge_matrix[(d*w) + c] / Q);
+		q12 = new_clone[(f*w) + e];// * (edge_matrix[(f*w) + e] / Q);
+		q22 = new_clone[(i*w) + g];// * (edge_matrix[(i*w) + g + 1000000] / Q);
+		
+		r1 = ((c-x)/(c-a))*q11 + ((x-a)/(c-a))*q21;
+		r2 = ((g-x)/(g-e))*q12 + ((x-e)/(g-e))*q22;
+		
+		p = ((f-y)/(f-b))*r1 + ((y-b)/(f-b))*r2;
+		
+		setPixel(x, y, p);
+	}
+}
+
